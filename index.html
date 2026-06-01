@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام ترصيد قطع الغيار - نسخة الجوال المستقرة</title>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ترصيد القطع">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/7617/7617931.png">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap');
+  :root {
+    --bg:#0a0e1a; --surface:#111827; --surface2:#1a2236; --border:#1e3a5f;
+    --accent:#00b4d8; --accent2:#0077b6; --gold:#f4a261;
+    --success:#06d6a0; --danger:#ef476f; --text:#e0f0ff; --muted:#7a9bbf;
+    --glow:0 0 20px rgba(0,180,216,.3);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:'Cairo',sans-serif;min-height:100vh}
+  body::before{content:'';position:fixed;inset:0;background:
+    radial-gradient(ellipse at 80% 10%,rgba(0,119,182,.12) 0%,transparent 60%),
+    radial-gradient(ellipse at 10% 80%,rgba(0,180,216,.08) 0%,transparent 50%);
+    pointer-events:none;z-index:0}
+  .app{position:relative;z-index:1;max-width:1300px;margin:0 auto;padding:15px}
+
+  header{text-align:center;padding:20px 15px 15px;border-bottom:1px solid var(--border);margin-bottom:15px;position:relative}
+  header::after{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:120px;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+  .logo{font-size:2.2rem;margin-bottom:4px;filter:drop-shadow(0 0 10px var(--accent))}
+  h1{font-size:1.6rem;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .subtitle{color:var(--muted);font-size:.78rem;margin-top:4px}
+
+  .tabs{display:flex;gap:5px;margin-bottom:15px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:5px}
+  .tab{flex:1;padding:10px 5px;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:.82rem;font-weight:700;color:var(--muted);background:transparent;transition:all .25s;text-align:center}
+  .tab:hover{color:var(--accent)}
+  .tab.active{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff;box-shadow:var(--glow)}
+
+  .panel{display:none}
+  .panel.active{display:block;animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:15px;margin-bottom:12px}
+  .card-title{font-size:.9rem;font-weight:700;color:var(--accent);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+
+  .upload-zone{border:2px dashed var(--border);border-radius:12px;padding:25px 15px;text-align:center;cursor:pointer;transition:all .3s;background:var(--surface2)}
+  .upload-zone:hover{border-color:var(--accent);background:rgba(0,180,216,.05)}
+  .upload-icon{font-size:2rem;margin-bottom:6px}
+  .upload-text{color:var(--muted);font-size:.8rem}
+  #fileInput,#jsonInput{display:none}
+
+  .stats-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .stat{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+  .stat-val{font-size:1.3rem;font-weight:900;color:var(--accent)}
+  .stat-lbl{font-size:.68rem;color:var(--muted);margin-top:2px}
+
+  .search-row{display:flex;gap:6px;margin-bottom:10px}
+  .search-input{flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:.88rem;outline:none}
+  .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,180,216,.12)}
+
+  .btn{padding:8px 14px;border:none;border-radius:10px;cursor:pointer;font-family:inherit;font-size:.8rem;font-weight:700;transition:all .2s;display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+  .btn-primary{background:linear-gradient(135deg,var(--accent2),var(--accent));color:#fff}
+  .btn-success{background:linear-gradient(135deg,#059669,var(--success));color:#fff}
+  .btn-danger{background:linear-gradient(135deg,#c0392b,var(--danger));color:#fff}
+  .btn-sm{padding:5px 9px;font-size:.75rem;border-radius:7px}
+
+  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);-webkit-overflow-scrolling:touch}
+  table{width:100%;border-collapse:collapse;font-size:.8rem}
+  thead tr{background:linear-gradient(135deg,var(--accent2),#023e8a)}
+  th{padding:8px;text-align:right;font-weight:700;white-space:nowrap;color:#fff}
+  td{padding:8px;border-bottom:1px solid rgba(30,58,95,.5);white-space:nowrap}
+
+  .qty-row{display:flex;align-items:center;gap:5px}
+  .qty-input{width:50px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);text-align:center}
+  
+  .just-input{width:110px;padding:4px 6px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:.75rem;outline:none}
+  .just-input-lg{width:140px}
+
+  .add-btn{padding:5px 9px;background:linear-gradient(135deg,var(--accent2),var(--accent));border:none;border-radius:6px;color:#fff;cursor:pointer;font-weight:700;font-size:.75rem}
+  .add-btn.added{background:linear-gradient(135deg,#059669,var(--success))}
+  .remove-btn{padding:4px 8px;background:rgba(239,71,111,.12);border:1px solid var(--danger);border-radius:6px;color:var(--danger);cursor:pointer;font-size:.75rem}
+
+  .empty{text-align:center;padding:35px 15px;color:var(--muted);font-size:.85rem}
+  .badge{display:inline-block;background:var(--accent);color:#fff;border-radius:20px;padding:1px 6px;font-size:.65rem;font-weight:700}
+  .badge-gold{background:var(--gold)}
+  .info-box{background:rgba(0,180,216,.08);border:1px solid rgba(0,180,216,.25);border-radius:10px;padding:10px 12px;font-size:.78rem;margin-bottom:12px}
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:9px 18px;border-radius:30px;font-size:.8rem;font-weight:600;z-index:9999;transition:transform .35s;box-shadow:var(--glow);white-space:nowrap}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  .no-db-msg{text-align:center;padding:40px 15px}
+  
+  /* زر التثبيت كتطبيق للجوال */
+  #installBtn { display: none; width: 100%; justify-content: center; margin-bottom: 15px; font-size: .85rem; padding: 12px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">⚙️</div>
+    <h1>نظام ترصيد قطع الغيار</h1>
+    <p class="subtitle">نسخة تطبيق الجوال — حفظ تلقائي مستقر واقتران كامل</p>
+  </header>
+
+  <button id="installBtn" class="btn btn-gold">📲 تثبيت النظام كتطبيق على الجوال</button>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('db')">🗄️ البيانات</button>
+    <button class="tab" onclick="switchTab('search')">🔍 البحث والترصيد</button>
+    <button class="tab" onclick="switchTab('watchlist')">📋 المرصود</button>
+  </div>
+
+  <div class="panel active" id="tab-db">
+    <div class="card">
+      <div class="card-title">📂 تحميل قاعدة البيانات (Excel / CSV)</div>
+      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon">📊</div>
+        <div class="upload-text">اضغط هنا واشحن ملف الـ Excel<br><small>يدعم: .xlsx / .xls / .csv</small></div>
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="loadExcelFile(event)">
+    </div>
+
+    <div id="dbStatus" style="display:none">
+      <div class="stats-bar">
+        <div class="stat"><div class="stat-val" id="totalRows">0</div><div class="stat-lbl">السجلات</div></div>
+        <div class="stat"><div class="stat-val" id="watchCount">0</div><div class="stat-lbl">المرصودة</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">⚙️ التحكم</div>
+        <div class="action-row" style="display:flex; gap:8px">
+          <button class="btn btn-success" onclick="saveDBasJSON()">💾 نسخة .json</button>
+          <button class="btn btn-danger" onclick="resetDatabase()">🗑️ مسح الكل</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">♻️ استعادة سريعة</div>
+      <button class="btn btn-primary" style="width:100%; justify-content:center" onclick="document.getElementById('jsonInput').click()">📁 استعادة من ملف .json</button>
+      <input type="file" id="jsonInput" accept=".json" onchange="restoreFromJSON(event)">
+    </div>
+
+    <div id="noDbMsg" class="no-db-msg">
+      <h3 style="color:var(--muted)">لا توجد بيانات محملة حالياً</h3>
+    </div>
+  </div>
+
+  <div class="panel" id="tab-search">
+    <div id="noDbSearch" class="no-db-msg" style="display:none">
+      <h3>⚠️ يرجى شحن البيانات أولاً</h3>
+    </div>
+    <div id="searchPanel" style="display:none">
+      <div class="card">
+        <div class="search-row">
+          <input class="search-input" id="searchInput" type="text" placeholder="ابحث برقم القطعة أو الاسم..." oninput="scheduleSearch()">
+          <button class="btn btn-danger btn-sm" onclick="clearSearch()">✖</button>
+        </div>
+        <div id="searchInfo" style="color:var(--muted);font-size:.75rem;margin-top:3px"></div>
+      </div>
+      <div id="searchResults">
+        <div class="empty"><p>اكتب كلمة البحث للبدء</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="tab-watchlist">
+    <div class="card">
+      <div class="card-title">📋 الترصيد النهائي <span class="badge badge-gold" id="watchBadge">0</span></div>
+      <div style="display:flex; gap:8px; flex-direction:column">
+        <button class="btn btn-success" style="justify-content:center" onclick="exportExcel()">📥 تصدير ملف Excel للتقرير</button>
+        <button class="btn btn-danger" style="justify-content:center" onclick="clearWatchlist()">🗑️ إفراغ القائمة</button>
+      </div>
+    </div>
+    <div id="watchlistTable">
+      <div class="empty"><p>لا توجد قطع مرصودة</p></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var dbData = []; var dbHeaders = []; var watchlist = []; var watchSet = new Set();
+var PAGE_SIZE = 40; var currentResults = []; var currentPage = 0;
+var dbInstance = null;
+
+// IndexedDB التخزين المستقر عبر الـ 
+function initIndexedDB(callback) {
+  var request = indexedDB.open("MobilePartsSystemDB", 1);
+  request.onupgradeneeded = function(e) {
+    var db = e.target.result;
+    if(!db.objectStoreNames.contains("metadata")) db.createObjectStore("metadata");
+  };
+  request.onsuccess = function(e) { dbInstance = e.target.result; if(callback) callback(); };
+  request.onerror = function() { showToast("✖ خطأ في معالجة ذاكرة الجوال"); };
+}
+
+function saveDatabaseToStorage() {
+  if (!dbInstance) return;
+  var tx = dbInstance.transaction(["metadata"], "readwrite");
+  var store = tx.objectStore("metadata");
+  store.put(dbData, "dbData"); store.put(dbHeaders, "dbHeaders");
+}
+
+function loadDatabaseFromStorage(callback) {
+  if (!dbInstance) return;
+  var tx = dbInstance.transaction(["metadata"], "readonly");
+  var store = tx.objectStore("metadata");
+  var reqData = store.get("dbData");
+  reqData.onsuccess = function() {
+    dbData = reqData.result || [];
+    var reqHeaders = store.get("dbHeaders");
+    reqHeaders.onsuccess = function() { dbHeaders = reqHeaders.result || []; if(callback) callback(); };
+  };
+}
+
+function clearDatabaseFromStorage() {
+  if (!dbInstance) return;
+  var tx = dbInstance.transaction(["metadata"], "readwrite");
+  var store = tx.objectStore("metadata").clear();
+}
+
+function saveWatchlist() { localStorage.setItem('m_sp_wl_v2', JSON.stringify(watchlist)); }
+function loadWatchlist() {
+  var raw = localStorage.getItem('m_sp_wl_v2');
+  if (raw) { try { watchlist = JSON.parse(raw) || []; watchSet = new Set(watchlist.map(w => w.rowIndex)); } catch(e) { watchlist = []; watchSet = new Set(); } }
+}
+
+function loadExcelFile(e) {
+  var file = e.target.files[0]; if(!file) return;
+  var ext = file.name.split('.').pop().toLowerCase();
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var wb = XLSX.read(ev.target.result, {type: ext==='csv'?'string':'binary'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length) return;
+      dbHeaders = Object.keys(rows[0]).filter(k => k !== '_idx');
+      dbData = rows.map((r, i) => { r._idx = i; return r; });
+      saveDatabaseToStorage(); updateDBPanel(); showToast('✅ تم الحفظ التلقائي في الجوال');
+    } catch(err) { showToast('❌ خطأ في معالجة الملف'); }
+  };
+  if(ext==='csv') reader.readAsText(file, 'UTF-8'); else reader.readAsBinaryString(file);
+}
+
+function saveDBasJSON() {
+  if(!dbData || !dbData.length) return;
+  var blob = new Blob([JSON.stringify({headers:dbHeaders, data:dbData})], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href=url; a.download='mobile_database.json'; a.click();
+}
+
+function restoreFromJSON(e) {
+  var file = e.target.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      var p = JSON.parse(ev.target.result);
+      if (p && p.headers && Array.isArray(p.data)) {
+        dbHeaders = p.headers; dbData = p.data.map((r, i) => { r._idx = i; return r; });
+        saveDatabaseToStorage(); updateDBPanel(); showToast('♻️ تمت استعادة البيانات');
+      }
+    } catch(err) { showToast('❌ فشل قراءة JSON'); }
+  };
+  reader.readAsText(file); e.target.value = '';
+}
+
+function updateDBPanel() {
+  var has = dbData && dbData.length > 0;
+  document.getElementById('dbStatus').style.display = has?'block':'none';
+  document.getElementById('noDbMsg').style.display = has?'none':'block';
+  if(has){
+    document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
+    document.getElementById('watchCount').textContent = watchlist.length;
+  }
+  var hasDb = dbData && dbData.length;
+  document.getElementById('noDbSearch').style.display = hasDb?'none':'block';
+  document.getElementById('searchPanel').style.display = hasDb?'block':'none';
+}
+
+function resetDatabase() {
+  if(!confirm('سيتم حذف قاعدة البيانات المخزنة نهائياً، هل أنت متأكد؟')) return;
+  dbData = []; dbHeaders = []; currentResults = []; clearDatabaseFromStorage();
+  document.getElementById('searchResults').innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>';
+  updateDBPanel();
+}
+
+var _st; function scheduleSearch() { clearTimeout(_st); _st = setTimeout(doSearch, 300); }
+function doSearch() {
+  var q = document.getElementById('searchInput').value.trim().toLowerCase();
+  var box = document.getElementById('searchResults');
+  if(!q) { box.innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; return; }
+  currentResults = dbData.filter(row => Object.values(row).some(v => String(v).toLowerCase().includes(q)));
+  currentPage = 0; renderSearchPage();
+  document.getElementById('searchInfo').textContent = 'النتائج: ' + currentResults.length;
+}
+
+function renderSearchPage() {
+  var box = document.getElementById('searchResults');
+  if(!currentResults || !currentResults.length) { box.innerHTML = '<div class="empty">لا توجد نتائج</div>'; return; }
+  var start = currentPage * PAGE_SIZE; var page = currentResults.slice(start, start + PAGE_SIZE);
+  var cols = dbHeaders.slice(0, 3); // تقليص الأعمدة لتناسب شاشة الجوال العرضية
+
+  var html = '<div class="table-wrap"><table><thead><tr>';
+  cols.forEach(h => html += '<th>'+h+'</th>');
+  html += '<th>الكمية</th><th>التبرير</th><th>إجراء</th></tr></thead><tbody>';
+
+  page.forEach(row => {
+    if(!row) return; var idx = row._idx; var isAdded = watchSet.has(idx);
+    html += '<tr>';
+    cols.forEach(h => html += '<td>'+(row[h]||'')+'</td>');
+    html += `<td><input class="qty-input" type="number" value="1" id="qty-${idx}"></td>
+             <td><input class="just-input" type="text" placeholder="التبرير..." id="just-${idx}"></td>
+             <td><button class="add-btn ${isAdded?'added':''}" id="btn-${idx}" onclick="addToWatchlist(${idx})">${isAdded?'✔':'رصد'}</button></td></tr>`;
+  });
+  box.innerHTML = html + '</tbody></table></div>';
+}
+
+function clearSearch() { document.getElementById('searchInput').value = ''; document.getElementById('searchResults').innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; }
+
+function addToWatchlist(idx) {
+  var row = dbData[idx]; if (!row) return;
+  var qtyInput = document.getElementById('qty-'+idx); var justInput = document.getElementById('just-'+idx);
+  var qty = parseInt(qtyInput ? qtyInput.value : 1) || 1; var just = justInput ? justInput.value.trim() : "";
+
+  if(watchSet.has(idx)) {
+    var item = watchlist.find(w => w.rowIndex === idx);
+    if(item) { item.qty += qty; if(just) item.justification = (item.justification !== 'لا يوجد' ? item.justification + ' | ' : '') + just; }
+    showToast('🔄 تم تحديث الكمية');
+  } else {
+    var snapshot = {}; dbHeaders.forEach(h => snapshot[h] = row[h]);
+    watchlist.push({ rowIndex: idx, rowData: snapshot, qty: qty, justification: just || 'لا يوجد' });
+    watchSet.add(idx); showToast('✅ تمت الإضافة');
+  }
+  var btn = document.getElementById('btn-'+idx); if(btn) { btn.textContent = '✔'; btn.classList.add('added'); }
+  saveWatchlist(); updateCounters();
+}
+
+function updateWatchlistQty(wIdx, val) { if (watchlist[wIdx]) { watchlist[wIdx].qty = parseInt(val) || 1; saveWatchlist(); } }
+function updateWatchlistJust(wIdx, val) { if (watchlist[wIdx]) { watchlist[wIdx].justification = val; saveWatchlist(); } }
+function removeFromWatchlist(wIdx) {
+  if (watchlist[wIdx]) { watchSet.delete(watchlist[wIdx].rowIndex); watchlist.splice(wIdx, 1); saveWatchlist(); updateCounters(); renderWatchlist(); }
+}
+
+function renderWatchlist() {
+  var box = document.getElementById('watchlistTable'); if(!watchlist || !watchlist.length) { box.innerHTML = '<div class="empty">القائمة فارغة</div>'; return; }
+  var cols = Object.keys(watchlist[0].rowData).slice(0, 3);
+  var html = '<div class="table-wrap"><table><thead><tr>';
+  cols.forEach(h => html += '<th>'+h+'</th>');
+  html += '<th>الكمية</th><th>التبرير</th><th>حذف</th></tr></thead><tbody>';
+
+  watchlist.forEach((item, i) => {
+    html += '<tr>';
+    cols.forEach(h => html += '<td>'+(item.rowData[h]||'')+'</td>');
+    html += `<td><input class="qty-input" type="number" value="${item.qty}" onchange="updateWatchlistQty(${i}, this.value)"></td>
+             <td><input class="just-input just-input-lg" type="text" value="${item.justification}" onchange="updateWatchlistJust(${i}, this.value)"></td>
+             <td><button class="remove-btn" onclick="removeFromWatchlist(${i})">✖</button></td></tr>`;
+  });
+  box.innerHTML = html + '</tbody></table></div>';
+}
+
+function clearWatchlist() { if(!confirm('إفراغ القائمة بالكامل؟')) return; watchlist = []; watchSet.clear(); saveWatchlist(); updateCounters(); renderWatchlist(); }
+function updateCounters() { var c = watchlist.length; if(document.getElementById('watchCount')) document.getElementById('watchCount').textContent = c; if(document.getElementById('watchBadge')) document.getElementById('watchBadge').textContent = c; }
+
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  var tabBtn = document.querySelector(`[onclick="switchTab('${id}')"]`); if(tabBtn) tabBtn.classList.add('active');
+  var panel = document.getElementById('tab-'+id); if(panel) panel.classList.add('active');
+  if(id==='watchlist') renderWatchlist();
+}
+
+function exportExcel() {
+  if(!watchlist || !watchlist.length) return;
+  var dataToExport = watchlist.map(item => {
+    var row = Object.assign({}, item.rowData); row['الكمية المرصودة'] = item.qty; row['التبرير'] = item.justification; return row;
+  });
+  var ws = XLSX.utils.json_to_sheet(dataToExport); var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "القطع المرصودة");
+  XLSX.writeFile(wb, `تقرير_ترصيد_${new Date().toLocaleDateString('ar-EG')}.xlsx`);
+}
+
+function showToast(msg) { var t = document.getElementById('toast'); if(t) { t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); } }
+
+// ============================================================
+// آلية التثبيت والتسجيل على الجوال
+// ============================================================
+var deferredPrompt;
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault(); deferredPrompt = e;
+  var installBtn = document.getElementById('installBtn');
+  if(installBtn) installBtn.style.display = 'inline-flex';
+});
+
+if(document.getElementById('installBtn')) {
+  document.getElementById('installBtn').addEventListener('click', function() {
+    if(deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(choiceResult) {
+        if (choiceResult.outcome === 'accepted') { document.getElementById('installBtn').style.display = 'none'; }
+        deferredPrompt = null;
+      });
+    }
+  });
+}
+
+// تشغيل النظام
+initIndexedDB(function() { loadWatchlist(); loadDatabaseFromStorage(function() { updateDBPanel(); updateCounters(); }); });
+</script>
+</body>
+</html>
