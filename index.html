@@ -6,13 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>نظام ترصيد قطع الغيار المطور</title>
 
-<!-- تهيئة التطبيق للعمل كـ PWA على أجهزة الاندرويد والآيفون -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ترصيد القطع">
 <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/7617/7617931.png">
 
-<!-- المكتبات البرمجية الخارجية -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
@@ -50,7 +48,6 @@
   h1 { font-size: 1.6rem; font-weight: 900; background: linear-gradient(135deg, var(--accent), #fff, var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.5px; }
   .subtitle { color: var(--accent); font-size: .82rem; font-weight: 600; margin-top: 6px; letter-spacing: 0.5px; opacity: 0.9; }
 
-  /* مؤشر حالة الشبكة والمخدم المباشر */
   .status-badge-wrapper { display: inline-flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.2); padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border); margin-top: 10px; font-size: 0.72rem; }
   .status-dot { width: 8px; height: 8px; background: var(--gold); border-radius: 50%; display: inline-block; box-shadow: 0 0 8px var(--gold); }
   .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
@@ -113,7 +110,6 @@
   .loading-overlay { background: rgba(15, 21, 36, 0.7); text-align: center; padding: 22px; border-radius: 14px; margin-bottom: 15px; border: 1px dashed var(--border); }
   .system-intro { font-size: 0.85rem; color: var(--muted); line-height: 1.65; text-align: justify; }
 
-  /* تذييل الصفحة المطور والمحمي بالكامل لحفظ حقوق التميز */
   footer { position: relative; z-index: 1; border-top: 1px solid var(--border); padding: 18px; text-align: center; font-size: 0.82rem; color: var(--muted); background: rgba(6, 9, 19, 0.8); width: 100%; margin-top: auto; backdrop-filter: blur(5px); }
   footer .engineers { display: block; margin-top: 4px; font-weight: 700; font-size: 0.88rem; background: linear-gradient(90deg, var(--accent), var(--gold), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 </style>
@@ -127,11 +123,10 @@
     <div class="subtitle">النظام الذكي لإدارة ومطابقة أرصدة المستودعات</div>
     <div class="status-badge-wrapper">
       <span class="status-dot" id="statusDot"></span>
-      <span id="statusText">جاري الاتصال بالسيرفر السحابي...</span>
+      <span id="statusText">جاري فحص حالة قاعدة البيانات...</span>
     </div>
   </header>
 
-  <!-- زر التثبيت الذكي للجوال -->
   <button id="installBtn" class="btn btn-gold">📲 تثبيت النظام كتطبيق على شاشة الجوال</button>
 
   <div class="tabs">
@@ -140,10 +135,9 @@
     <button class="tab" id="tabButton-watchlist" onclick="switchTab('watchlist')">📋 المرصود الحالي</button>
   </div>
 
-  <!-- TAB 1: SERVER & DATABASE -->
   <div class="panel" id="tab-db">
     <div id="loadingStatus" class="loading-overlay">
-      <p style="color:var(--gold)">⏳ جاري قراءة ملف data.xlsx السحابي وتحديث الجداول...</p>
+      <p style="color:var(--gold)">⏳ جاري التحقق من التحديثات السحابية...</p>
     </div>
     <div class="card">
       <div class="card-title">📊 حول النظام ونبذة تعريفية</div>
@@ -160,7 +154,6 @@
     </div>
   </div>
 
-  <!-- TAB 2: SEARCH ENGINE -->
   <div class="panel active" id="tab-search">
     <div class="card">
       <div class="search-row">
@@ -174,7 +167,6 @@
     </div>
   </div>
 
-  <!-- TAB 3: REPORT MANAGEMENT -->
   <div class="panel" id="tab-watchlist">
     <div class="card">
       <div class="card-title">📋 قائمة التقرير النهائي <span class="badge" id="watchBadge">0</span></div>
@@ -189,7 +181,6 @@
   </div>
 </div>
 
-<!-- تذييل الصفحة المطور والمحمي قانونياً وبصرياً -->
 <footer>
   تطوير وإشراف هندسي:
   <span class="engineers">المهندس راني العريقي &amp; المهندس أمجد توفيق</span>
@@ -206,25 +197,97 @@ var PAGE_SIZE = 40;
 var currentResults = [];
 var searchTimer;
 
-function updateStatusIndicator(state) {
+// تهيئة ذاكرة المتصفح المتطورة IndexedDB لتخزين أحجام البيانات الكبيرة بأمان وضمان السرعة
+var dbInstance = null;
+function initIndexedDB(callback) {
+  var request = indexedDB.open("WarehouseSmartDB", 1);
+  request.onupgradeneeded = function(e) {
+    var db = e.target.result;
+    if(!db.objectStoreNames.contains("cached_data")) {
+      db.createObjectStore("cached_data", { keyPath: "id" });
+    }
+  };
+  request.onsuccess = function(e) { dbInstance = e.target.result; callback(); };
+  request.onerror = function() { callback(); };
+}
+
+function getLocalData(callback) {
+  if(!dbInstance) return callback(null, null);
+  var transaction = dbInstance.transaction(["cached_data"], "readonly");
+  var store = transaction.objectStore("cached_data");
+  var req = store.get("excel_rows");
+  req.onsuccess = function() {
+    var reqTag = store.get("excel_etag");
+    reqTag.onsuccess = function() {
+      callback(req.result ? req.result.value : null, reqTag.result ? reqTag.result.value : null);
+    };
+  };
+  req.onerror = function() { callback(null, null); };
+}
+
+function saveLocalData(rows, etag) {
+  if(!dbInstance) return;
+  var transaction = dbInstance.transaction(["cached_data"], "readwrite");
+  var store = transaction.objectStore("cached_data");
+  store.put({ id: "excel_rows", value: rows });
+  if(etag) store.put({ id: "excel_etag", value: etag });
+}
+
+function updateStatusIndicator(state, message) {
   var dot = document.getElementById('statusDot');
   var txt = document.getElementById('statusText');
   if(!dot || !txt) return;
   
   dot.className = "status-dot";
-  if(state === 'online') { dot.classList.add('online'); txt.textContent = "متصل وقابل للمزامنة الآن"; }
-  else if(state === 'offline') { dot.classList.add('offline'); txt.textContent = "غير متصل - تأكد من ملف data.xlsx"; }
-  else { txt.textContent = "جاري جلب الملف وتحديث المخزون..."; }
+  if(state === 'online') { dot.classList.add('online'); txt.textContent = message || "متصل وقابل للمزامنة الآن"; }
+  else if(state === 'offline') { dot.classList.add('offline'); txt.textContent = message || "غير متصل - تأكد من ملف data.xlsx"; }
+  else { txt.textContent = message || "جاري التحقق من التحديثات السحابية..."; }
 }
 
-function syncWithGitHubDatabase() {
-  updateStatusIndicator('loading');
-  var cacheBuster = "data.xlsx?v=" + new Date().getTime();
+function checkAndSyncDatabase() {
+  updateStatusIndicator('loading', 'جاري فحص مطابقة البيانات مع السيرفر...');
+  
+  getLocalData(function(cachedRows, cachedEtag) {
+    var xhr = new XMLHttpRequest();
+    xhr.open("HEAD", "data.xlsx?v=" + new Date().getTime(), true); // فحص هيدر الملف فقط بدون تحميله بالكامل لتوفير الإنترنت
+    
+    xhr.onload = function() {
+      var currentEtag = xhr.getResponseHeader("ETag") || xhr.getResponseHeader("Last-Modified");
+      
+      // إذا كان الملف متطابقاً في التوقيت والـ ETag وموجود محلياً
+      if (cachedRows && cachedEtag && currentEtag === cachedEtag) {
+        dbData = cachedRows;
+        document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
+        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--success); font-weight:600">⚡ نفس قاعدة البيانات الحالية ولم تتغير! (تم جلبها فوريّاً من الذاكرة المحلية وتوفير التحميل).</p>';
+        updateStatusIndicator('online', 'قاعدة البيانات مطابقة تماماً للأصل');
+        showToast('🚀 نفس قاعدة البيانات؛ تم الجلب من الذاكرة المحلية');
+      } else {
+        // إذا كان هناك ملف جديد أو لا توجد بيانات مخزنة من قبل؛ نقوم بالتحميل الكامل لمرة واحدة فقط
+        downloadFullDatabase(currentEtag);
+      }
+    };
+    xhr.onerror = function() {
+      if(cachedRows) { // في حال انقطاع الشبكة يتم العمل أوفلاين تلقائياً
+        dbData = cachedRows;
+        document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
+        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--gold)">⚠️ تم تشغيل الوضع المحلي أوفلاين (تعذر الاتصال بالسيرفر).</p>';
+        updateStatusIndicator('online', 'تعمل الآن على النسخة المحلية الاحتياطية');
+      } else {
+        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--danger)">✖ خطأ شبكة ولا توجد نسخة مخزنة مسبقاً.</p>';
+        updateStatusIndicator('offline');
+      }
+    };
+    xhr.send();
+  });
+}
+
+function downloadFullDatabase(etagKey) {
+  updateStatusIndicator('loading', 'تم كشف تحديث جديد! جاري تحميل قاعدة البيانات...');
   var xhr = new XMLHttpRequest();
-  xhr.open("GET", cacheBuster, true);
+  xhr.open("GET", "data.xlsx?v=" + new Date().getTime(), true);
   xhr.responseType = "arraybuffer";
   
-  xhr.onload = function(e) {
+  xhr.onload = function() {
     if (xhr.status >= 200 && xhr.status < 300) {
       try {
         var data = new Uint8Array(xhr.response);
@@ -238,24 +301,21 @@ function syncWithGitHubDatabase() {
         if (rows.length > 0) {
           dbData = rows.map((r, i) => { r._idx = i; return r; });
           document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
-          document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--success); font-weight:600">✅ تم مزامنة وقراءة البيانات بنجاح من المستودع السحابي!</p>';
-          updateStatusIndicator('online');
-          showToast('🔄 تم تحديث قاعدة البيانات بنجاح');
+          document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--success); font-weight:600">✅ تم تحميل وحفظ قاعدة البيانات الجديدة بالمتصفح بنجاح!</p>';
+          
+          // حفظ في التخزين الذكي IndexedDB للمرات القادمة
+          saveLocalData(dbData, etagKey);
+          
+          updateStatusIndicator('online', 'تمت المزامنة وحفظ النسخة المحدثة');
+          showToast('📥 تم تحديث وتخزين قاعدة البيانات الجديدة');
         } else {
           throw new Error("ملف الإكسل فارغ");
         }
       } catch(err) {
-        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--danger)">✖ فشل في معالجة وتحليل ملف data.xlsx الداخلي.</p>';
+        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--danger)">✖ فشل في معالجة وتحليل ملف data.xlsx.</p>';
         updateStatusIndicator('offline');
       }
-    } else {
-      document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--danger)">✖ لم يتم العثور على ملف data.xlsx بجانب كود الموقع في جيت هاب.</p>';
-      updateStatusIndicator('offline');
     }
-  };
-  xhr.onerror = function() {
-    document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--danger)">✖ خطأ شبكة غير متوقع أثناء الاتصال بالخادم الرئيسي.</p>';
-    updateStatusIndicator('offline');
   };
   xhr.send();
 }
@@ -373,7 +433,6 @@ function exportExcel() {
     });
 
     var ws = XLSX.utils.json_to_sheet(structuredExport);
-    
     if(!ws['!views']) ws['!views'] = [{}];
     ws['!views'][0]['RTL'] = true;
 
@@ -428,7 +487,11 @@ if(document.getElementById('installBtn')) {
   });
 }
 
-loadWatchlistFromDevice(); updateCounters(); syncWithGitHubDatabase();
+// البدء بتشغيل الذاكرة المحلية والتحقق الذكي من التحديثات
+loadWatchlistFromDevice(); updateCounters();
+initIndexedDB(function() {
+  checkAndSyncDatabase();
+});
 </script>
 </body>
 </html>
