@@ -52,8 +52,8 @@
   .status-dot.online { background: var(--success); box-shadow: 0 0 8px var(--success); }
   .status-dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
 
-  .tabs { display: flex; gap: 6px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 6px; }
-  .tab { flex: 1; padding: 12px 5px; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: .88rem; font-weight: 700; color: var(--muted); background: transparent; transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); text-align: center; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 6px; }
+  .tab { flex: 1; min-width: 80px; padding: 10px 5px; border: none; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: .82rem; font-weight: 700; color: var(--muted); background: transparent; transition: all .3s cubic-bezier(0.4, 0, 0.2, 1); text-align: center; }
   .tab:hover { color: var(--accent); background: rgba(255,255,255,0.02); }
   .tab.active { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; box-shadow: var(--glow); }
 
@@ -136,9 +136,10 @@
   <button id="installBtn" class="btn btn-gold">📲 تثبيت النظام كتطبيق على شاشة الجوال</button>
 
   <div class="tabs">
-    <button class="tab active" id="tabButton-db" onclick="switchTab('db')">🏠 الصفحة الرئيسية</button>
+    <button class="tab active" id="tabButton-db" onclick="switchTab('db')">🏠 الرئيسية</button>
     <button class="tab" id="tabButton-search" onclick="switchTab('search')">🔍 البحث والترصيد</button>
     <button class="tab" id="tabButton-watchlist" onclick="switchTab('watchlist')">📋 المرصود الحالي</button>
+    <button class="tab" id="tabButton-admin" onclick="checkAdminLogin()">⚙️ التحديث السحابي</button>
   </div>
 
   <div class="panel active" id="tab-db">
@@ -165,7 +166,7 @@
     <div class="card">
       <div class="card-title">📊 حول النظام ونبذة تعريفية</div>
       <p class="system-intro">
-        تم تصميم وتطوير هذا النظام لتسهيل عمليات الجرد والترصيد الميداني لقطع الغيار والمخزون الصناعي مباشرة من الهواتف الذكية والأجهزة المحمولة. يعمل النظام بكفاءة عالية على دمج وإدارة البيانات السحابية المنفصلة مع توفير واجهة بحث فورية وخفيفة، مع إمكانية توثيق التبريرات التقنية لكل حركة صرف، ثم استخراجها في تقارير Excel ذكية ومنسقة تدعم اللغة العربية بالكامل لضمان استقرار العمليات وسرعة اتخاذ القرار.
+        تم تصميم وتطوير هذا النظام لتسهيل عمليات الجرد والترصيد الميداني لقطع الغيار والمخزون الصناعي مباشرة من الهواتف الذكية والأجهزة المحمولة. يعمل النظام بكفاءة عالية على دمج وإدارة البيانات السحابية المنفصلة مع توفير واجهة بحث فورية وخفيفة، مع إمكانية توثيق التبريرات التقنية لكل حركة صرف، ثم استخراجها في تقارير Excel ذكية ومنسقة.
       </p>
     </div>
     
@@ -201,6 +202,41 @@
     </div>
     <div id="watchlistTable">
       <div class="empty"><p>لا توجد قطع مرصودة حتى الآن</p></div>
+    </div>
+  </div>
+
+  <div class="panel" id="tab-admin">
+    <div class="card">
+      <div class="card-title">☁️ رفع وتحديث قاعدة البيانات (data.xlsx)</div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        
+        <!-- هذا المربع سيتم إخفاؤه عن الزميل -->
+        <div id="adminSettingsWrapper" style="display: none;">
+          <div style="margin-bottom: 10px;">
+            <label style="font-size: 0.8rem; color: var(--muted);">بيانات المستودع (GitHub Username / Repo Name)</label>
+            <div style="display: flex; gap: 8px; margin-top: 5px;">
+              <input class="just-input" type="text" id="ghOwner" placeholder="اسم المستخدم" style="flex: 1;">
+              <input class="just-input" type="text" id="ghRepo" placeholder="اسم المستودع" style="flex: 1;">
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 0.8rem; color: var(--muted);">مفتاح جيت هب (Personal Access Token)</label>
+            <input class="just-input" type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="width: 100%; margin-top: 5px;">
+            <small style="color: var(--danger); font-size: 0.7rem; display: block; margin-top: 4px;">يتم حفظ المفتاح في متصفحك الحالي فقط للأمان.</small>
+          </div>
+        </div>
+
+        <div style="border: 1px dashed var(--border); padding: 15px; border-radius: 12px; text-align: center; margin-top: 10px;">
+          <input type="file" id="newExcelFile" accept=".xlsx" style="display: none;" onchange="updateFileName()">
+          <button class="btn btn-primary" onclick="document.getElementById('newExcelFile').click()" style="width: 100%;">📁 اختيار ملف Excel الجديد للتحديث</button>
+          <div id="selectedFileName" style="margin-top: 10px; font-size: 0.8rem; color: var(--gold);">لم يتم اختيار ملف حتى الآن</div>
+        </div>
+
+        <button class="btn btn-success" id="uploadBtn" onclick="uploadToGitHub()" style="margin-top: 10px;">🚀 رفع وتحديث قاعدة البيانات السحابية</button>
+        
+        <div id="uploadStatus" style="font-size: 0.85rem; margin-top: 10px; text-align: center;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -280,7 +316,7 @@ function checkAndSyncDatabase() {
       if (cachedRows && cachedEtag && currentEtag === cachedEtag) {
         dbData = cachedRows;
         document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
-        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--success); font-weight:600">⚡ قاعدة البيانات مطابقة تماماً! (تم الجلب فوريّاً من الذاكرة المحلية وتوفير التحميل).</p>';
+        document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--success); font-weight:600">⚡ قاعدة البيانات مطابقة تماماً! (تم الجلب فوريّاً من الذاكرة المحلية).</p>';
         updateStatusIndicator('online', 'قاعدة البيانات مطابقة تماماً للأصل');
         showToast('🚀 تم الجلب فوريّاً من الذاكرة المحلية المستقرة');
       } else {
@@ -496,6 +532,147 @@ function triggerDirectDownload(blob, fileName) {
 
 function showToast(msg) { var t = document.getElementById('toast'); if(t) { t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3200); } }
 
+// --- دوال لوحة الإدارة والتحديث السحابي ---
+
+function checkAdminLogin() {
+  var pass = prompt("الرجاء إدخال رمز المرور للوصول لصلاحيات التحديث:");
+  
+  if (pass === "1234") { 
+    // الرمز الخاص بك (المدير الرئيسي)
+    switchTab('admin');
+    loadAdminData();
+    document.getElementById('adminSettingsWrapper').style.display = 'block';
+    showToast("🔓 تم الدخول بصلاحية مدير كاملة");
+  } 
+  else if (pass === "5678") {
+    // الرمز الخاص بزميلك (صلاحية الرفع فقط)
+    switchTab('admin');
+    loadAdminData();
+    document.getElementById('adminSettingsWrapper').style.display = 'none';
+    showToast("🔒 تم الدخول بصلاحية الرفع والتحديث فقط");
+  } 
+  else if (pass !== null && pass !== "") {
+    showToast("❌ رمز المرور غير صحيح");
+  }
+}
+
+function loadAdminData() {
+  if (localStorage.getItem('gh_owner')) document.getElementById('ghOwner').value = localStorage.getItem('gh_owner');
+  if (localStorage.getItem('gh_repo')) document.getElementById('ghRepo').value = localStorage.getItem('gh_repo');
+  if (localStorage.getItem('gh_token')) document.getElementById('ghToken').value = localStorage.getItem('gh_token');
+}
+
+function updateFileName() {
+  var fileInput = document.getElementById('newExcelFile');
+  var nameDisplay = document.getElementById('selectedFileName');
+  if (fileInput.files.length > 0) {
+    nameDisplay.textContent = "الملف المختار: " + fileInput.files[0].name;
+    nameDisplay.style.color = "var(--success)";
+  }
+}
+
+async function uploadToGitHub() {
+  var owner = document.getElementById('ghOwner').value.trim();
+  var repo = document.getElementById('ghRepo').value.trim();
+  var token = document.getElementById('ghToken').value.trim();
+  var fileInput = document.getElementById('newExcelFile');
+  var statusDiv = document.getElementById('uploadStatus');
+
+  // جلب البيانات المخفية تلقائياً لزميلك (صلاحية 5678)
+  if(document.getElementById('adminSettingsWrapper').style.display === 'none') {
+    owner = localStorage.getItem('gh_owner') || "";
+    repo = localStorage.getItem('gh_repo') || "";
+    token = localStorage.getItem('gh_token') || "";
+  }
+
+  if (!owner || !repo || !token) {
+    showToast("⚠️ إعدادات الربط مفقودة. يرجى الدخول بصلاحية الإدارة لضبطها مرة واحدة أولاً.");
+    return;
+  }
+  if (fileInput.files.length === 0) {
+    showToast("⚠️ الرجاء اختيار ملف إكسل (data.xlsx) أولاً");
+    return;
+  }
+
+  // حفظ الإعدادات لعدم طلبها مجدداً
+  localStorage.setItem('gh_owner', owner);
+  localStorage.setItem('gh_repo', repo);
+  localStorage.setItem('gh_token', token);
+
+  var file = fileInput.files[0];
+  var path = "data.xlsx"; // تأكد أن هذا هو اسم الملف في مستودع الجيت هب
+  var apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+
+  statusDiv.innerHTML = '<span style="color:var(--accent)">⏳ جاري تجهيز الملف والاتصال بالسيرفر...</span>';
+  document.getElementById('uploadBtn').disabled = true;
+
+  try {
+    const base64Content = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(',')[1]);
+      reader.onerror = error => reject(error);
+      reader.readAsDataURL(file);
+    });
+
+    statusDiv.innerHTML = '<span style="color:var(--accent)">🔍 جاري التحقق من النسخة القديمة...</span>';
+    const getResponse = await fetch(apiUrl, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    let sha = null;
+    if (getResponse.ok) {
+      const fileData = await getResponse.json();
+      sha = fileData.sha;
+    } else if (getResponse.status !== 404) {
+      throw new Error("فشل في الوصول للمستودع. تأكد من صحة التوكن واسم المستخدم.");
+    }
+
+    statusDiv.innerHTML = '<span style="color:var(--gold)">☁️ جاري رفع التحديث إلى السحابة...</span>';
+    const putBody = {
+      message: "تحديث قاعدة البيانات السحابية (data.xlsx) عبر النظام",
+      content: base64Content
+    };
+    if (sha) putBody.sha = sha;
+
+    const putResponse = await fetch(apiUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(putBody)
+    });
+
+    if (putResponse.ok) {
+      statusDiv.innerHTML = '<span style="color:var(--success)">✅ تم تحديث قاعدة البيانات بنجاح! سيتم تطبيق التحديثات خلال ثوانٍ.</span>';
+      showToast("🚀 تم تحديث قاعدة البيانات على السحابة بنجاح");
+      
+      // مسح الملف المختار من الواجهة
+      fileInput.value = "";
+      document.getElementById('selectedFileName').textContent = "لم يتم اختيار ملف حتى الآن";
+      document.getElementById('selectedFileName').style.color = "var(--gold)";
+
+      // تحديث الصفحة تلقائياً بعد 3 ثوانٍ لرؤية التغييرات
+      setTimeout(() => {
+        statusDiv.innerHTML = '<span style="color:var(--success)">🔄 جاري إعادة تحميل الصفحة وتحديث البيانات...</span>';
+        location.reload();
+      }, 3500);
+
+    } else {
+      const errorData = await putResponse.json();
+      throw new Error(errorData.message || "حدث خطأ غير معروف أثناء الرفع");
+    }
+
+  } catch (error) {
+    statusDiv.innerHTML = `<span style="color:var(--danger)">✖ حدث خطأ: ${error.message}</span>`;
+    console.error(error);
+  } finally {
+    document.getElementById('uploadBtn').disabled = false;
+  }
+}
+
+// --- أحداث التثبيت وغيرها ---
 var devicePrompt;
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault(); devicePrompt = e;
