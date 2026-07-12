@@ -143,8 +143,9 @@
     /* إخفاء عمود الترصيد في ملف الطباعة */
     th:last-child, td:last-child { display: none !important; }
     
-    /* جعل حقول الإدخال شفافة في الطباعة لتظهر كبيانات عادية */
+    /* جعل حقول الإدخال شفافة في الطباعة وإخفاء النص التوضيحي */
     input { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; width: 100% !important; outline: none !important; font-family: inherit !important; font-size: 13px !important; }
+    input::placeholder { color: transparent !important; text-shadow: none !important; }
     
     /* ترويسة عنوان التقرير الورقي/PDF */
     #tab-search::before {
@@ -487,7 +488,7 @@ function renderSearchOutput() {
     return; 
   }
   
-  printBtn.style.display = 'block'; // إظهار زر الطباعة
+  printBtn.style.display = 'block'; 
   
   var html = '<div class="table-wrap"><table><thead><tr>';
   html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون الحالي</th><th>الكمية من المورد</th><th>الكمية المطلوبة</th><th>التبرير الخاص بالصرف</th><th>الترصيد</th></tr></thead><tbody>';
@@ -496,7 +497,6 @@ function renderSearchOutput() {
   viewPage.forEach(row => {
     var idx = row._idx; var isAdded = watchSet.has(idx);
     
-    // خوارزمية البحث الذكي عن عمود الكمية من المورد
     var onOrderQty = '-';
     var possibleKeys = Object.keys(row);
     for(var k = 0; k < possibleKeys.length; k++) {
@@ -555,12 +555,14 @@ function pushToWatchlist(idx) {
     var existingItem = watchlist.find(w => w.rowIndex === idx);
     if(existingItem) { 
       existingItem.qty += qty; 
-      if(just) existingItem.justification = (existingItem.justification !== 'لا يوجد' ? existingItem.justification + ' | ' : '') + just; 
+      if(just) {
+        existingItem.justification = (existingItem.justification ? existingItem.justification + ' | ' : '') + just; 
+      }
     }
     showToast('🔄 تم تحديث كمية وتبرير القطعة المرصودة مسبقاً');
   } else {
     var snapshot = { 'Item No.': row['Item No.'], 'SP-Ref': row['SP-Ref'], 'Item Description': row['Item Description'], 'In Stock': row['In Stock'] };
-    watchlist.push({ rowIndex: idx, rowData: snapshot, qty: qty, justification: just || 'لا يوجد' });
+    watchlist.push({ rowIndex: idx, rowData: snapshot, qty: qty, justification: just });
     watchSet.add(idx); showToast('✅ تم إضافة القطعة إلى مسودة التقرير التراكمي');
   }
   
