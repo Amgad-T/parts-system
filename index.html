@@ -92,6 +92,7 @@
   .btn-danger { background: linear-gradient(135deg, #c0392b, var(--danger)); color: #fff; }
   .btn-gold { background: linear-gradient(135deg, #e67e22, var(--gold)); color: #fff; width: 100%; display: none; margin-bottom: 15px; padding: 14px; box-shadow: 0 4px 12px rgba(244, 162, 97, 0.2); }
   .btn-sm { padding: 6px 12px; font-size: .78rem; border-radius: 8px; }
+  .btn-print { background: linear-gradient(135deg, #64748b, #475569); color: #fff; box-shadow: 0 4px 12px rgba(100, 116, 139, 0.2); width: 100%; margin-top: 10px; }
 
   .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); -webkit-overflow-scrolling: touch; }
   table { width: 100%; border-collapse: collapse; font-size: .85rem; text-align: right; }
@@ -122,6 +123,35 @@
 
   footer { position: relative; z-index: 1; border-top: 1px solid var(--border); padding: 18px; text-align: center; font-size: 0.82rem; color: var(--muted); background: rgba(6, 9, 19, 0.8); width: 100%; margin-top: auto; backdrop-filter: blur(5px); }
   footer .engineers { display: block; margin-top: 4px; font-weight: 700; font-size: 0.88rem; background: linear-gradient(90deg, var(--accent), var(--gold), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  /* تنسيقات الطباعة وتحويل النظام لملف PDF */
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    body::before { display: none !important; }
+    header, .tabs, .search-row, .recent-searches, #searchInfo, footer, .status-badge-wrapper, #toast, #installBtn, #printBtnWrapper, .load-more-btn { display: none !important; }
+    .app { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }
+    .panel { display: none !important; }
+    #tab-search { display: block !important; opacity: 1 !important; transform: none !important; }
+    .card { border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 !important; background: transparent !important; }
+    #searchResults { padding-top: 10px !important; }
+    
+    .table-wrap { overflow: visible !important; border: none !important; }
+    table { border-collapse: collapse !important; width: 100% !important; margin-bottom: 20px !important; }
+    th, td { border: 1px solid #000 !important; color: #000 !important; padding: 8px !important; text-align: right !important; white-space: normal !important; font-size: 13px !important; }
+    th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold !important; color: #000 !important; }
+    
+    /* إخفاء عمود الترصيد في ملف الطباعة */
+    th:last-child, td:last-child { display: none !important; }
+    
+    /* جعل حقول الإدخال شفافة في الطباعة لتظهر كبيانات عادية */
+    input { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; width: 100% !important; outline: none !important; font-family: inherit !important; font-size: 13px !important; }
+    
+    /* ترويسة عنوان التقرير الورقي/PDF */
+    #tab-search::before {
+      content: 'تقرير نتائج البحث المباشر - نظام قطع الغيار';
+      display: block; text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #000; border-bottom: 2px solid #000; padding-bottom: 10px;
+    }
+  }
 </style>
 </head>
 <body>
@@ -190,6 +220,9 @@
         <button class="btn btn-danger btn-sm" onclick="clearSearch()">✖</button>
       </div>
       <div id="recentSearchesBox" class="recent-searches" style="display:none;"></div>
+      <div id="printBtnWrapper" style="display:none;">
+        <button class="btn btn-print" onclick="window.print()">🖨️ طباعة أو حفظ النتائج كملف PDF</button>
+      </div>
       <div id="searchInfo" style="color:var(--muted);font-size:.75rem;margin-top:6px">اكتب للبحث الفوري في قاعدة البيانات...</div>
     </div>
     <div id="searchResults">
@@ -425,9 +458,14 @@ function scheduleSearch() {
 function performSearch() {
   var query = document.getElementById('searchInput').value.trim().toLowerCase();
   var resultsContainer = document.getElementById('searchResults');
+  var printBtn = document.getElementById('printBtnWrapper');
   currentDisplayLimit = PAGE_SIZE; 
   
-  if(!query) { resultsContainer.innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; return; }
+  if(!query) { 
+    resultsContainer.innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; 
+    printBtn.style.display = 'none';
+    return; 
+  }
   
   currentResults = dbData.filter(row => {
     return String(row['Item No.'] || '').toLowerCase().includes(query) || 
@@ -441,7 +479,15 @@ function performSearch() {
 
 function renderSearchOutput() {
   var resultsContainer = document.getElementById('searchResults');
-  if(!currentResults || !currentResults.length) { resultsContainer.innerHTML = '<div class="empty">لا توجد نتائج مطابقة في قاعدة البيانات الحالية</div>'; return; }
+  var printBtn = document.getElementById('printBtnWrapper');
+  
+  if(!currentResults || !currentResults.length) { 
+    resultsContainer.innerHTML = '<div class="empty">لا توجد نتائج مطابقة في قاعدة البيانات الحالية</div>'; 
+    printBtn.style.display = 'none';
+    return; 
+  }
+  
+  printBtn.style.display = 'block'; // إظهار زر الطباعة
   
   var html = '<div class="table-wrap"><table><thead><tr>';
   html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون الحالي</th><th>الكمية من المورد</th><th>الكمية المطلوبة</th><th>التبرير الخاص بالصرف</th><th>الترصيد</th></tr></thead><tbody>';
@@ -450,10 +496,7 @@ function renderSearchOutput() {
   viewPage.forEach(row => {
     var idx = row._idx; var isAdded = watchSet.has(idx);
     
-    // -----------------------------------------------------
     // خوارزمية البحث الذكي عن عمود الكمية من المورد
-    // تبحث عن أي عمود يحتوي على الكلمات التالية
-    // -----------------------------------------------------
     var onOrderQty = '-';
     var possibleKeys = Object.keys(row);
     for(var k = 0; k < possibleKeys.length; k++) {
@@ -465,7 +508,6 @@ function renderSearchOutput() {
          }
       }
     }
-    // -----------------------------------------------------
 
     html += '<tr>';
     html += '<td><b>' + (row['Item No.'] || '') + '</b></td>';
@@ -482,7 +524,7 @@ function renderSearchOutput() {
   
   if(currentResults.length > currentDisplayLimit) {
     var remaining = currentResults.length - currentDisplayLimit;
-    htmlEnd += `<button class="btn btn-primary" style="width:100%; margin-top:12px;" onclick="loadMoreResults()">⬇️ عرض المزيد من النتائج (${remaining} متبقية)</button>`;
+    htmlEnd += `<button class="btn btn-primary load-more-btn" style="width:100%; margin-top:12px;" onclick="loadMoreResults()">⬇️ عرض المزيد من النتائج (${remaining} متبقية)</button>`;
   }
   
   resultsContainer.innerHTML = html + htmlEnd;
@@ -497,6 +539,7 @@ function clearSearch() {
   document.getElementById('searchInput').value = ''; 
   document.getElementById('searchResults').innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; 
   document.getElementById('searchInfo').textContent = 'اكتب للبدء...'; 
+  document.getElementById('printBtnWrapper').style.display = 'none';
   currentDisplayLimit = PAGE_SIZE;
 }
 
