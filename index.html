@@ -8,7 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ترصيد القطع">
-<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/7617/7617931.png">
+<link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3201/3201463.png">
+<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3201/3201463.png">
+<link rel="manifest" href="manifest.json">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -140,14 +142,10 @@
     th, td { border: 1px solid #000 !important; color: #000 !important; padding: 8px !important; text-align: right !important; white-space: normal !important; font-size: 13px !important; }
     th { background-color: #f0f0f0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold !important; color: #000 !important; }
     
-    /* إخفاء عمود الترصيد في ملف الطباعة */
     th:last-child, td:last-child { display: none !important; }
-    
-    /* جعل حقول الإدخال شفافة في الطباعة وإخفاء النص التوضيحي */
     input { border: none !important; background: transparent !important; color: #000 !important; padding: 0 !important; width: 100% !important; outline: none !important; font-family: inherit !important; font-size: 13px !important; }
     input::placeholder { color: transparent !important; text-shadow: none !important; }
     
-    /* ترويسة عنوان التقرير الورقي/PDF */
     #tab-search::before {
       content: 'تقرير نتائج البحث المباشر - نظام قطع الغيار';
       display: block; text-align: center; font-size: 18px; font-weight: bold; margin-bottom: 20px; color: #000; border-bottom: 2px solid #000; padding-bottom: 10px;
@@ -211,6 +209,13 @@
         <div class="stat"><div class="stat-val" id="totalRows">0</div><div class="stat-lbl">إجمالي القطع</div></div>
         <div class="stat"><div class="stat-val" id="watchCount">0</div><div class="stat-lbl">المرصودة حالياً</div></div>
       </div>
+      
+      <!-- قسم تاريخ آخر تحديث من السيرفر -->
+      <div style="text-align:center; margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 0.85rem; color: var(--muted);">
+        🕒 تاريخ آخر تحديث لقاعدة البيانات في السيرفر: <br>
+        <span id="lastUpdateLabel" style="color:var(--success); font-weight:bold; font-size: 0.95rem; display:block; margin-top:4px; letter-spacing: 0.5px;">جاري التحقق...</span>
+      </div>
+
     </div>
   </div>
 
@@ -298,6 +303,26 @@ var searchTimer;
 var historyTimer;
 var recentSearches = JSON.parse(localStorage.getItem('recent_searches')) || [];
 
+// دالة عرض تاريخ التحديث
+function displayLastUpdate(dateStr) {
+  var lbl = document.getElementById('lastUpdateLabel');
+  if(lbl) lbl.innerHTML = dateStr || '<span style="color:var(--danger)">غير معروف</span>';
+}
+
+// دالة استخراج وقت رفع الملف الحقيقي من السيرفر
+function getServerDate(xhr) {
+  var lastModified = xhr.getResponseHeader("Last-Modified");
+  if (lastModified) {
+    var d = new Date(lastModified);
+    if (!isNaN(d.getTime())) {
+      var dateString = d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) + ' - ' + d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem('server_last_update', dateString);
+      return dateString;
+    }
+  }
+  return localStorage.getItem('server_last_update') || 'غير معروف';
+}
+
 var dbInstance = null;
 function initIndexedDB(callback) {
   var request = indexedDB.open("WarehouseSmartDB", 1);
@@ -353,13 +378,16 @@ function checkAndSyncDatabase() {
     
     xhr.onload = function() {
       var currentEtag = xhr.getResponseHeader("ETag") || xhr.getResponseHeader("Last-Modified");
-      
+      var serverDate = getServerDate(xhr);
+
       if (cachedRows && cachedEtag && currentEtag === cachedEtag) {
         dbData = cachedRows;
         document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
         document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--success); font-weight:600">⚡ قاعدة البيانات مطابقة تماماً! (تم الجلب فوريّاً من الذاكرة المحلية).</p>';
         updateStatusIndicator('online', 'قاعدة البيانات مطابقة تماماً للأصل');
-        showToast('🚀 تم الجلب فوريّاً من الذاكرة المحلية المستقرة');
+        
+        displayLastUpdate(serverDate);
+        
       } else {
         downloadFullDatabase(currentEtag);
       }
@@ -370,9 +398,14 @@ function checkAndSyncDatabase() {
         document.getElementById('totalRows').textContent = dbData.length.toLocaleString('ar');
         document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--gold)">⚠️ يعمل بالوضع المحلي حالياً (تعذر الاتصال بالسيرفر).</p>';
         updateStatusIndicator('online', 'تعمل الآن على النسخة المحلية الاحتياطية');
+        
+        var savedDate = localStorage.getItem('server_last_update') || 'غير معروف';
+        displayLastUpdate(savedDate + ' <span style="color:var(--danger); font-size:0.75rem;">(أوفلاين)</span>');
+        
       } else {
         document.getElementById('loadingStatus').innerHTML = '<p style="color:var(--danger)">✖ خطأ شبكة ولا توجد نسخة مخزنة مسبقاً.</p>';
         updateStatusIndicator('offline');
+        displayLastUpdate(null);
       }
     };
     xhr.send();
@@ -404,6 +437,10 @@ function downloadFullDatabase(etagKey) {
           saveLocalData(dbData, etagKey);
           updateStatusIndicator('online', 'تمت المزامنة وحفظ النسخة المحدثة');
           showToast('📥 تم تحديث وتخزين قاعدة البيانات الجديدة');
+          
+          var serverDate = getServerDate(xhr);
+          displayLastUpdate(serverDate);
+          
         } else {
           throw new Error("ملف الإكسل فارغ");
         }
@@ -803,6 +840,13 @@ if(document.getElementById('installBtn')) {
       devicePrompt.prompt();
       devicePrompt.userChoice.then(function(res) { if (res.outcome === 'accepted') document.getElementById('installBtn').style.display = 'none'; devicePrompt = null; });
     }
+  });
+}
+
+// تفعيل ميزة التطبيق التقدمي Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   });
 }
 
