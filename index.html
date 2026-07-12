@@ -81,6 +81,11 @@
   .search-input { flex: 1; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--text); font-family: inherit; font-size: .95rem; outline: none; transition: all 0.25s; }
   .search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0, 180, 216, 0.15); background: rgba(23, 32, 51, 0.8); }
 
+  /* تنسيقات سجل البحث الأخير */
+  .recent-searches { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .recent-search-tag { background: var(--surface2); border: 1px solid var(--border); padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; color: var(--muted); transition: all 0.2s; }
+  .recent-search-tag:hover { color: var(--accent); border-color: var(--accent); }
+
   .btn { padding: 11px 16px; border: none; border-radius: 12px; cursor: pointer; font-family: inherit; font-size: .85rem; font-weight: 700; transition: all .25s cubic-bezier(0.4, 0, 0.2, 1); display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; }
   .btn:active { transform: scale(0.97); }
   .btn-primary { background: linear-gradient(135deg, var(--accent2), var(--accent)); color: #fff; }
@@ -185,7 +190,8 @@
         <input class="search-input" id="searchInput" type="text" placeholder="ابحث برقم القطعة أو الاسم..." oninput="scheduleSearch()">
         <button class="btn btn-danger btn-sm" onclick="clearSearch()">✖</button>
       </div>
-      <div id="searchInfo" style="color:var(--muted);font-size:.75rem;margin-top:2px">اكتب للبحث الفوري في قاعدة البيانات...</div>
+      <div id="recentSearchesBox" class="recent-searches" style="display:none;"></div>
+      <div id="searchInfo" style="color:var(--muted);font-size:.75rem;margin-top:6px">اكتب للبحث الفوري في قاعدة البيانات...</div>
     </div>
     <div id="searchResults">
       <div class="empty"><p>أدخل كلمة البحث للبدء</p></div>
@@ -253,8 +259,11 @@ var dbData = [];
 var watchlist = [];
 var watchSet = new Set();
 var PAGE_SIZE = 40;
+var currentDisplayLimit = 40; // للمزيد من النتائج
 var currentResults = [];
 var searchTimer;
+var historyTimer;
+var recentSearches = JSON.parse(localStorage.getItem('recent_searches')) || [];
 
 var dbInstance = null;
 function initIndexedDB(callback) {
@@ -374,17 +383,51 @@ function downloadFullDatabase(etagKey) {
   xhr.send();
 }
 
+// --- دوال سجل البحث الأخير ---
+function updateRecentSearchesUI() {
+  var box = document.getElementById('recentSearchesBox');
+  if (!recentSearches.length) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  box.innerHTML = '<span style="font-size:0.75rem; color:var(--muted); margin-left:5px;">آخر بحث:</span>' +
+    recentSearches.map(q => `<span class="recent-search-tag" onclick="useRecentSearch('${q.replace(/'/g, "\\'")}')">${q}</span>`).join('');
+}
+
+function useRecentSearch(q) {
+  document.getElementById('searchInput').value = q;
+  performSearch();
+}
+
+function saveRecentSearch(q) {
+  if(!q) return;
+  recentSearches = recentSearches.filter(item => item !== q);
+  recentSearches.unshift(q);
+  if(recentSearches.length > 5) recentSearches.pop();
+  localStorage.setItem('recent_searches', JSON.stringify(recentSearches));
+  updateRecentSearchesUI();
+}
+
 function saveWatchlistToDevice() { localStorage.setItem('parts_watchlist_store', JSON.stringify(watchlist)); }
 function loadWatchlistFromDevice() {
   var raw = localStorage.getItem('parts_watchlist_store');
   if (raw) { try { watchlist = JSON.parse(raw) || []; watchSet = new Set(watchlist.map(w => w.rowIndex)); } catch(e) { watchlist = []; watchSet = new Set(); } }
 }
 
-function scheduleSearch() { clearTimeout(searchTimer); searchTimer = setTimeout(performSearch, 300); }
+function scheduleSearch() { 
+  clearTimeout(searchTimer); 
+  searchTimer = setTimeout(performSearch, 300); 
+  
+  clearTimeout(historyTimer);
+  historyTimer = setTimeout(() => {
+    var q = document.getElementById('searchInput').value.trim().toLowerCase();
+    if(q && currentResults.length > 0) saveRecentSearch(q);
+  }, 2000); // حفظ في السجل بعد ثانيتين من التوقف عن الكتابة
+}
 
 function performSearch() {
   var query = document.getElementById('searchInput').value.trim().toLowerCase();
   var resultsContainer = document.getElementById('searchResults');
+  currentDisplayLimit = PAGE_SIZE; // تصفير الحد عند البحث الجديد
+  
   if(!query) { resultsContainer.innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; return; }
   
   currentResults = dbData.filter(row => {
@@ -402,29 +445,55 @@ function renderSearchOutput() {
   if(!currentResults || !currentResults.length) { resultsContainer.innerHTML = '<div class="empty">لا توجد نتائج مطابقة في قاعدة البيانات الحالية</div>'; return; }
   
   var html = '<div class="table-wrap"><table><thead><tr>';
-  html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون الحالي</th><th>الكمية المطلوبة</th><th>التبرير الخاص بالصرف</th><th>الترصيد</th></tr></thead><tbody>';
+  html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون الحالي</th><th>الكمية من المورد</th><th>الكمية المطلوبة</th><th>التبرير الخاص بالصرف</th><th>الترصيد</th></tr></thead><tbody>';
 
-  var viewPage = currentResults.slice(0, PAGE_SIZE);
+  var viewPage = currentResults.slice(0, currentDisplayLimit);
   viewPage.forEach(row => {
     var idx = row._idx; var isAdded = watchSet.has(idx);
+    var onOrderQty = row['On Order'] || row['الكمية المطلوبة من الموردين'] || row['الكمية بالطريق'] || row['كمية المورد'] || '-';
+    
     html += '<tr>';
     html += '<td><b>' + (row['Item No.'] || '') + '</b></td>';
     html += '<td>' + (row['SP-Ref'] || '-') + '</td>';
     html += '<td style="white-space:normal; min-width:180px; font-size:0.75rem;">' + (row['Item Description'] || '') + '</td>';
     html += '<td style="color:var(--gold)">' + (row['In Stock'] || '0') + '</td>';
+    html += '<td style="color:var(--accent)">' + onOrderQty + '</td>'; // عمود الموردين
     html += `<td><input class="qty-input" type="number" value="1" min="1" id="qty-${idx}"></td>
              <td><input class="just-input" type="text" placeholder="مثال: تالف / صيانة طارئة..." id="just-${idx}"></td>
              <td><button class="add-btn ${isAdded ? 'added' : ''}" id="btn-${idx}" onclick="pushToWatchlist(${idx})">${isAdded ? '✔ مرصود' : 'رصد القطعة'}</button></td></tr>`;
   });
-  resultsContainer.innerHTML = html + '</tbody></table></div>';
+  
+  var htmlEnd = '</tbody></table></div>';
+  
+  // زر عرض المزيد في حال وجود نتائج إضافية
+  if(currentResults.length > currentDisplayLimit) {
+    var remaining = currentResults.length - currentDisplayLimit;
+    htmlEnd += `<button class="btn btn-primary" style="width:100%; margin-top:12px;" onclick="loadMoreResults()">⬇️ عرض المزيد من النتائج (${remaining} متبقية)</button>`;
+  }
+  
+  resultsContainer.innerHTML = html + htmlEnd;
 }
 
-function clearSearch() { document.getElementById('searchInput').value = ''; document.getElementById('searchResults').innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; document.getElementById('searchInfo').textContent = 'اكتب للبدء...'; }
+function loadMoreResults() {
+  currentDisplayLimit += PAGE_SIZE;
+  renderSearchOutput();
+}
+
+function clearSearch() { 
+  document.getElementById('searchInput').value = ''; 
+  document.getElementById('searchResults').innerHTML = '<div class="empty"><p>أدخل كلمة البحث للبدء</p></div>'; 
+  document.getElementById('searchInfo').textContent = 'اكتب للبدء...'; 
+  currentDisplayLimit = PAGE_SIZE;
+}
 
 function pushToWatchlist(idx) {
   var row = dbData[idx]; if (!row) return;
   var qtyInput = document.getElementById('qty-' + idx); var justInput = document.getElementById('just-' + idx);
   var qty = parseInt(qtyInput ? qtyInput.value : 1) || 1; var just = justInput ? justInput.value.trim() : "";
+
+  // حفظ كلمة البحث الحالية عند الترصيد لتأكيدها في السجل
+  var currentSearchQuery = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (currentSearchQuery) saveRecentSearch(currentSearchQuery);
 
   if(watchSet.has(idx)) {
     var existingItem = watchlist.find(w => w.rowIndex === idx);
@@ -684,6 +753,7 @@ if(document.getElementById('installBtn')) {
 }
 
 loadWatchlistFromDevice(); updateCounters();
+updateRecentSearchesUI(); // تشغيل دالة إظهار السجل عند بدء النظام
 initIndexedDB(function() {
   checkAndSyncDatabase();
 });
