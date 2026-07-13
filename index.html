@@ -8,8 +8,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ترصيد القطع">
-<link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3201/3201463.png">
-<link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3201/3201463.png">
+<!-- ربط الشعار الجديد كأيقونة للمتصفح -->
+<link rel="icon" type="image/png" href="./logo.png">
+<link rel="apple-touch-icon" href="./logo.png">
 <link rel="manifest" href="manifest.json">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -45,7 +46,11 @@
 
   header { text-align: center; padding: 25px 15px; border-bottom: 1px solid var(--border); margin-bottom: 20px; position: relative; }
   header::after { content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%); width: 180px; height: 2px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
-  .logo { font-size: 2.5rem; margin-bottom: 6px; filter: drop-shadow(0 0 12px var(--accent)); }
+  
+  /* تنسيق الشعار الجديد في الواجهة */
+  .app-logo { width: 90px; height: 90px; object-fit: contain; margin: 0 auto 10px; display: block; filter: drop-shadow(0 4px 15px rgba(244, 162, 97, 0.25)); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+  .app-logo:hover { transform: scale(1.05); filter: drop-shadow(0 6px 20px rgba(0, 180, 216, 0.4)); }
+  
   h1 { font-size: 1.6rem; font-weight: 900; background: linear-gradient(135deg, var(--accent), #fff, var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.5px; }
   .subtitle { color: var(--accent); font-size: .82rem; font-weight: 600; margin-top: 6px; letter-spacing: 0.5px; opacity: 0.9; }
 
@@ -157,7 +162,8 @@
 
 <div class="app">
   <header>
-    <div class="logo">⚙️</div>
+    <!-- تم استبدال الرمز النصي بمسار الصورة -->
+    <img src="./logo.png" class="app-logo" alt="شعار النظام">
     <h1>نظام ترصيد قطع الغيار</h1>
     <div class="subtitle">النظام الذكي لإدارة ومطابقة أرصدة المستودعات</div>
     <div class="status-badge-wrapper">
@@ -210,7 +216,6 @@
         <div class="stat"><div class="stat-val" id="watchCount">0</div><div class="stat-lbl">المرصودة حالياً</div></div>
       </div>
       
-      <!-- قسم تاريخ آخر تحديث من السيرفر -->
       <div style="text-align:center; margin-top: 15px; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 0.85rem; color: var(--muted);">
         🕒 تاريخ آخر تحديث لقاعدة البيانات في السيرفر: <br>
         <span id="lastUpdateLabel" style="color:var(--success); font-weight:bold; font-size: 0.95rem; display:block; margin-top:4px; letter-spacing: 0.5px;">جاري التحقق...</span>
@@ -303,13 +308,11 @@ var searchTimer;
 var historyTimer;
 var recentSearches = JSON.parse(localStorage.getItem('recent_searches')) || [];
 
-// دالة عرض تاريخ التحديث
 function displayLastUpdate(dateStr) {
   var lbl = document.getElementById('lastUpdateLabel');
   if(lbl) lbl.innerHTML = dateStr || '<span style="color:var(--danger)">غير معروف</span>';
 }
 
-// دالة استخراج وقت رفع الملف الحقيقي من السيرفر
 function getServerDate(xhr) {
   var lastModified = xhr.getResponseHeader("Last-Modified");
   if (lastModified) {
@@ -453,7 +456,6 @@ function downloadFullDatabase(etagKey) {
   xhr.send();
 }
 
-// --- دوال سجل البحث الأخير ---
 function updateRecentSearchesUI() {
   var box = document.getElementById('recentSearchesBox');
   if (!recentSearches.length) { box.style.display = 'none'; return; }
@@ -614,10 +616,9 @@ function removeWatchlistItem(wIdx) { if (watchlist[wIdx]) { watchSet.delete(watc
 function renderWatchlist() {
   var box = document.getElementById('watchlistTable'); if(!watchlist || !watchlist.length) { box.innerHTML = '<div class="empty">قائمة الترصيد فارغة تماماً حالياً</div>'; return; }
   var html = '<div class="table-wrap"><table><thead><tr>';
-  html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون بالمخزن</th><th>الكمية المطلوبة</th><th>التبرير (قابل للتعديل الفوري)</th><th>حذف</th></tr></thead><tbody>';
+  html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون بالمخزن</th><th>الكمية المطلوبة</th><th>التبرير (قابل للتعديل الفوري)</th><th>حذف</th></tr></thead><tbody><tr>';
 
   watchlist.forEach((item, i) => {
-    html += '<tr>';
     html += '<td><b>' + (item.rowData['Item No.'] || '') + '</b></td>';
     html += '<td>' + (item.rowData['SP-Ref'] || '-') + '</td>';
     html += '<td style="white-space:normal; min-width:180px; font-size:0.75rem;">' + (item.rowData['Item Description'] || '') + '</td>';
@@ -695,24 +696,19 @@ function triggerDirectDownload(blob, fileName) {
 
 function showToast(msg) { var t = document.getElementById('toast'); if(t) { t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3200); } }
 
-// --- دوال لوحة الإدارة والتحديث السحابي ---
-
 function checkAdminLogin() {
   var pass = prompt("الرجاء إدخل رمز المرور للوصول لصلاحيات التحديث:");
-  
   if (pass === "199712") { 
     switchTab('admin');
     loadAdminData();
     document.getElementById('adminSettingsWrapper').style.display = 'block';
     showToast("🔓 تم الدخول بصلاحية مدير كاملة");
-  } 
-  else if (pass === "5678") {
+  } else if (pass === "5678") {
     switchTab('admin');
     loadAdminData();
     document.getElementById('adminSettingsWrapper').style.display = 'none';
     showToast("🔒 تم الدخول بصلاحية الرفع والتحديث فقط");
-  } 
-  else if (pass !== null && pass !== "") {
+  } else if (pass !== null && pass !== "") {
     showToast("❌ رمز المرور غير صحيح");
   }
 }
@@ -745,14 +741,8 @@ async function uploadToGitHub() {
     token = localStorage.getItem('gh_token') || "";
   }
 
-  if (!owner || !repo || !token) {
-    showToast("⚠️ إعدادات الربط مفقودة. يرجى الدخول بصلاحية الإدارة لضبطها مرة واحدة أولاً.");
-    return;
-  }
-  if (fileInput.files.length === 0) {
-    showToast("⚠️ الرجاء اختيار ملف إكسل (data.xlsx) أولاً");
-    return;
-  }
+  if (!owner || !repo || !token) { showToast("⚠️ إعدادات الربط مفقودة."); return; }
+  if (fileInput.files.length === 0) { showToast("⚠️ الرجاء اختيار ملف إكسل أولاً"); return; }
 
   localStorage.setItem('gh_owner', owner);
   localStorage.setItem('gh_repo', repo);
@@ -762,7 +752,7 @@ async function uploadToGitHub() {
   var path = "data.xlsx"; 
   var apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
-  statusDiv.innerHTML = '<span style="color:var(--accent)">⏳ جاري تجهيز الملف والاتصال بالسيرفر...</span>';
+  statusDiv.innerHTML = '<span style="color:var(--accent)">⏳ جاري الاتصال بالسيرفر...</span>';
   document.getElementById('uploadBtn').disabled = true;
 
   try {
@@ -773,57 +763,33 @@ async function uploadToGitHub() {
       reader.readAsDataURL(file);
     });
 
-    statusDiv.innerHTML = '<span style="color:var(--accent)">🔍 جاري التحقق من النسخة القديمة...</span>';
-    const getResponse = await fetch(apiUrl, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
+    const getResponse = await fetch(apiUrl, { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } });
     let sha = null;
-    if (getResponse.ok) {
-      const fileData = await getResponse.json();
-      sha = fileData.sha;
-    } else if (getResponse.status !== 404) {
-      throw new Error("فشل في الوصول للمستودع. تأكد من صحة التوكن واسم المستخدم.");
-    }
+    if (getResponse.ok) { const fileData = await getResponse.json(); sha = fileData.sha; } 
+    else if (getResponse.status !== 404) { throw new Error("فشل الوصول للمستودع."); }
 
-    statusDiv.innerHTML = '<span style="color:var(--gold)">☁️ جاري رفع التحديث إلى السحابة...</span>';
-    const putBody = {
-      message: "تحديث قاعدة البيانات السحابية (data.xlsx) عبر النظام",
-      content: base64Content
-    };
+    statusDiv.innerHTML = '<span style="color:var(--gold)">☁️ جاري رفع التحديث...</span>';
+    const putBody = { message: "تحديث قاعدة البيانات (data.xlsx)", content: base64Content };
     if (sha) putBody.sha = sha;
 
     const putResponse = await fetch(apiUrl, {
       method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(putBody)
     });
 
     if (putResponse.ok) {
-      statusDiv.innerHTML = '<span style="color:var(--success)">✅ تم تحديث قاعدة البيانات بنجاح! سيتم تطبيق التحديثات خلال ثوانٍ.</span>';
-      showToast("🚀 تم تحديث قاعدة البيانات على السحابة بنجاح");
-      
+      statusDiv.innerHTML = '<span style="color:var(--success)">✅ تم تحديث قاعدة البيانات بنجاح!</span>';
+      showToast("🚀 تم تحديث قاعدة البيانات على السحابة");
       fileInput.value = "";
-      document.getElementById('selectedFileName').textContent = "لم يتم اختيار ملف حتى الآن";
-      document.getElementById('selectedFileName').style.color = "var(--gold)";
-
-      setTimeout(() => {
-        statusDiv.innerHTML = '<span style="color:var(--success)">🔄 جاري إعادة تحميل الصفحة وتحديث البيانات...</span>';
-        location.reload();
-      }, 3500);
-
+      document.getElementById('selectedFileName').textContent = "لم يتم اختيار ملف";
+      setTimeout(() => location.reload(), 3000);
     } else {
       const errorData = await putResponse.json();
-      throw new Error(errorData.message || "حدث خطأ غير معروف أثناء الرفع");
+      throw new Error(errorData.message || "خطأ غير معروف");
     }
-
   } catch (error) {
     statusDiv.innerHTML = `<span style="color:var(--danger)">✖ حدث خطأ: ${error.message}</span>`;
-    console.error(error);
   } finally {
     document.getElementById('uploadBtn').disabled = false;
   }
@@ -843,18 +809,13 @@ if(document.getElementById('installBtn')) {
   });
 }
 
-// تفعيل ميزة التطبيق التقدمي Service Worker
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
-  });
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
 }
 
 loadWatchlistFromDevice(); updateCounters();
 updateRecentSearchesUI(); 
-initIndexedDB(function() {
-  checkAndSyncDatabase();
-});
+initIndexedDB(function() { checkAndSyncDatabase(); });
 </script>
 </body>
 </html>
