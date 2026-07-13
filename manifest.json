@@ -1,0 +1,17 @@
+{
+  "name": "نظام ترصيد قطع الغيار",
+  "short_name": "ترصيد",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#060913",
+  "theme_color": "#0f1524",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
