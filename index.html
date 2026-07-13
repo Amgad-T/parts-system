@@ -8,10 +8,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ترصيد القطع">
-<!-- ربط الشعار الجديد كأيقونة للمتصفح -->
-<link rel="icon" type="image/png" href="./logo.png">
-<link rel="apple-touch-icon" href="./logo.png">
-<link rel="manifest" href="manifest.json">
+<!-- استخدام تقنية Cache Busting لإجبار المتصفح على تحميل الشعار الجديد -->
+<link rel="icon" type="image/png" href="logo.png?v=2">
+<link rel="apple-touch-icon" href="logo.png?v=2">
+<link rel="manifest" href="manifest.json?v=2">
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -162,8 +162,8 @@
 
 <div class="app">
   <header>
-    <!-- تم استبدال الرمز النصي بمسار الصورة -->
-    <img src="./logo.png" class="app-logo" alt="شعار النظام">
+    <!-- تم إضافة تقنية منع التخزين المؤقت Cache Busting للشعار -->
+    <img src="logo.png?v=2" class="app-logo" alt="شعار النظام" onerror="this.onerror=null;this.src='https://cdn-icons-png.flaticon.com/512/3201/3201463.png';">
     <h1>نظام ترصيد قطع الغيار</h1>
     <div class="subtitle">النظام الذكي لإدارة ومطابقة أرصدة المستودعات</div>
     <div class="status-badge-wrapper">
