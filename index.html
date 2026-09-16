@@ -530,7 +530,7 @@ function renderSearchOutput() {
   printBtn.style.display = 'block'; 
   
   var html = '<div class="table-wrap"><table><thead><tr>';
-  html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون الحالي</th><th>الكمية من المورد</th><th>الكمية المطلوبة</th><th>التبرير الخاص بالصرف</th><th>الترصيد</th></tr></thead><tbody>';
+  html += '<th>رقم القطعة</th><th>مرجع القطعة (SP-Ref)</th><th>الوصف والبيان</th><th>المخزون الحالي</th><th>الكمية من المورد</th><th>التبرير الخاص بالصرف</th><th>الترصيد</th></tr></thead><tbody>';
 
   var viewPage = currentResults.slice(0, currentDisplayLimit);
   viewPage.forEach(row => {
@@ -554,8 +554,7 @@ function renderSearchOutput() {
     html += '<td style="white-space:normal; min-width:180px; font-size:0.75rem;">' + (row['Item Description'] || '') + '</td>';
     html += '<td style="color:var(--gold)">' + (row['In Stock'] || '0') + '</td>';
     html += '<td style="color:var(--accent)">' + onOrderQty + '</td>'; 
-    html += `<td><input class="qty-input" type="number" value="1" min="1" id="qty-${idx}"></td>
-             <td><input class="just-input" type="text" placeholder="مثال: تالف / صيانة طارئة..." id="just-${idx}"></td>
+    html += `<td><input class="just-input" type="text" placeholder="مثال: تالف / صيانة طارئة..." id="just-${idx}"></td>
              <td><button class="add-btn ${isAdded ? 'added' : ''}" id="btn-${idx}" onclick="pushToWatchlist(${idx})">${isAdded ? '✔ مرصود' : 'رصد القطعة'}</button></td></tr>`;
   });
   
